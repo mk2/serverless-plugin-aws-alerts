@@ -83,8 +83,16 @@ class AlertsPlugin {
     return this.getAlarms(alarms, definitions);
   }
 
+  gettNonFunctionAlarms(config, definitions) {
+    if (!config) throw new Error('Missing config argument');
+    if (!definitions) throw new Error('Missing definitions argument');
+
+    const alarms = config.nonFunction;
+    return this.getAlarms(alarms, definitions);
+  }
+
   getAlarmCloudFormation(alertTopics, definition, functionName, functionRef) {
-    if (!functionRef) {
+    if (functionRef == null) {
       return;
     }
 
@@ -354,6 +362,20 @@ class AlertsPlugin {
 
       this.addCfResources(alarmStatements);
     });
+
+    const nonFunctionAlarms = this.gettNonFunctionAlarms(config, definitions).map(
+      alarm => _.assign({ nameTemplate: config.nameTemplate, prefixTemplate: config.prefixTemplate }, alarm));
+    this.addCfResources(nonFunctionAlarms.reduce((statements, alarm) => {
+      const key = this.naming.getAlarmCloudFormationRef(alarm.name, '');
+      if (alarm.enabled) {
+        const cf = this.getAlarmCloudFormation(alertTopics, alarm, '', '');
+        statements[key] = cf;
+      } else {
+        delete statements[key];
+      }
+
+      return statements;
+    }, {}));
   }
 
   getDashboardTemplates(configDashboards) {
